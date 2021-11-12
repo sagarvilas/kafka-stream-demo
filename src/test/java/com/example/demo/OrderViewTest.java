@@ -5,9 +5,12 @@ import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.TestInputTopic;
 import org.apache.kafka.streams.TopologyTestDriver;
+import org.apache.kafka.streams.processor.StateStore;
 import org.apache.kafka.streams.state.KeyValueStore;
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Map;
 import java.util.Properties;
 
@@ -30,9 +33,10 @@ public class OrderViewTest {
 
         final ProductDeserializer deserializer = new ProductDeserializer();
         final TestInputTopic<Integer, MyViews.Product> products =
-                topologyTestDriver.createInputTopic("products", Serdes.Integer().serializer(), Serdes.serdeFrom(new JsonSerializer<>(), deserializer).serializer());
+                topologyTestDriver
+                        .createInputTopic("products", Serdes.Integer().serializer(), Serdes.serdeFrom(new JsonSerializer<>(), deserializer).serializer(), Instant.ofEpochSecond(0), Duration.ofSeconds(1));
         final TestInputTopic<Integer, MyViews.Price> prices =
-                topologyTestDriver.createInputTopic("prices", Serdes.Integer().serializer(), Serdes.serdeFrom(new JsonSerializer<>(), new PriceDeserializer()).serializer());
+                topologyTestDriver.createInputTopic("prices", Serdes.Integer().serializer(), Serdes.serdeFrom(new JsonSerializer<>(), new PriceDeserializer()).serializer(), Instant.ofEpochSecond(0), Duration.ofSeconds(1));
 
         products.pipeInput(new MyViews.Product(1, "Apple"));
         prices.pipeInput(new MyViews.Price(2, 100));
@@ -43,12 +47,9 @@ public class OrderViewTest {
         products.pipeInput(new MyViews.Product(3, "Nokia"));
         products.pipeInput(new MyViews.Product(4, "HTC"));
 
-        final KeyValueStore<Integer, MyViews.Product> orderStore = topologyTestDriver.getKeyValueStore("products-view");
-        final KeyValueStore<Integer, MyViews.Price> priceStore = topologyTestDriver.getKeyValueStore("prices-view");
-
+        final KeyValueStore<Integer, MyViews.Order> orderStore = topologyTestDriver.getKeyValueStore("order-view");
         orderStore.get(1);
         orderStore.get(2);
 
-        priceStore.get(1);
     }
 }
